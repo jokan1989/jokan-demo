@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+	xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="
+        http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+        http://www.springframework.org/schema/context
+        http://www.springframework.org/schema/context/spring-context-3.0.xsd">
+        
+    <context:component-scan base-package="com.jokan.activemq.service"/>
+	
+	<!-- activemq 连接池 -->
+	<bean id="jmsFactory" class="org.apache.activemq.pool.PooledConnectionFactory">
+		<property name="connectionFactory">
+			<bean class="org.apache.activemq.ActiveMQConnectionFactory">
+				<property name="brokerURL" value="tcp://localhost:61616" />
+			</bean>
+		</property>
+		<property name="maxConnections" value="100" />
+	</bean>
+	<!--  -->
+	<bean id="cachingConnectionFactory" class="org.springframework.jms.connection.CachingConnectionFactory">
+		<property name="targetConnectionFactory" ref="jmsFactory" />
+		<property name="sessionCacheSize" value="1" />
+	</bean>
+	
+	<bean id="jmsTemplate" class="org.springframework.jms.core.JmsTemplate">
+		<property name="connectionFactory" ref="cachingConnectionFactory" />
+		<property name="messageConverter">
+			<bean class="org.springframework.jms.support.converter.SimpleMessageConverter"></bean>
+		</property>
+	</bean>
+	<!-- 点对点 Queue消息传递模型 -->
+	<bean id="testQueue" class="org.apache.activemq.command.ActiveMQQueue">
+		<constructor-arg name="name" value="spring-queue" />
+	</bean>
+	<!-- 发布/订阅 Topic消息传递模型 -->
+	<bean id="testTopic" class="org.apache.activemq.command.ActiveMQTopic">
+		<constructor-arg name="name" value="spring-topic" />
+	</bean>
+	<!-- 消息监听（消费者） -->
+	<bean id="queueListener" class="com.jokan.activemq.listener.QueueListener" />
+	<bean id="topic1Listener" class="com.jokan.activemq.listener.Topic1Listener" />
+	<bean id="topic2Listener" class="com.jokan.activemq.listener.Topic2Listener" />
+	
+	<bean id="queueContainer" class="org.springframework.jms.listener.DefaultMessageListenerContainer">
+		<property name="connectionFactory" ref="cachingConnectionFactory" />
+		<property name="destination" ref="testQueue" />
+		<property name="messageListener" ref="queueListener" />
+	</bean>
+	
+	<!-- topic1Container 容器只接受指定队列名称的消息 -->
+	<bean id="topic1Container" class="org.springframework.jms.listener.DefaultMessageListenerContainer">
+		<property name="connectionFactory" ref="cachingConnectionFactory" />
+		<property name="destinationName" value="spring-topic"></property>
+		<property name="messageListener" ref="topic1Listener" />
+	</bean>
+	
+	<bean id="topic2Container" class="org.springframework.jms.listener.DefaultMessageListenerContainer">
+		<property name="connectionFactory" ref="cachingConnectionFactory" />
+		<property name="destination" ref="testTopic" />
+		<property name="messageListener" ref="topic2Listener" />
+	</bean>
+</beans>
